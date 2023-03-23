@@ -1,6 +1,10 @@
 package cli
 
-import "fmt"
+import (
+	"bufio"
+	"fmt"
+	"os"
+)
 
 type SelectionItem string
 
@@ -37,16 +41,21 @@ func EnterData(data []EnterDataItem) {
 		}
 		for {
 			fmt.Print(v.Name + ": ")
-			var tmp string
-			fmt.Scan(&tmp)
+			reader := bufio.NewReader(os.Stdin)
+			text, err := reader.ReadString('\n')
+			text = text[:len(text)-1]
+			if err != nil {
+				fmt.Println(err, "try again")
+				continue
+			}
 			if v.Verify != nil {
-				err := v.Verify(tmp)
+				err = v.Verify(text)
 				if err != nil {
 					fmt.Println(err, "try again")
 					continue
 				}
 			}
-			*v.Data = tmp
+			*v.Data = text
 			break
 		}
 

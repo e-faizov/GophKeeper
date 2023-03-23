@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/gob"
+
+	"github.com/e-faizov/GophKeeper/internal/models"
 )
 
 // go binary encoder
-func ToGOB64(m interface{}) (string, error) {
+func ConvertToGOB64(m models.User) (string, error) {
 	b := bytes.Buffer{}
 	e := gob.NewEncoder(&b)
 	err := e.Encode(m)
@@ -18,18 +20,18 @@ func ToGOB64(m interface{}) (string, error) {
 }
 
 // go binary decoder
-func FromGOB64(str string) (interface{}, error) {
-	var m interface{}
+func ConvertFromGOB64(str string) (models.User, error) {
+	var m models.User
 	by, err := base64.StdEncoding.DecodeString(str)
 	if err != nil {
-		return nil, err
+		return models.User{}, err
 	}
 	b := bytes.Buffer{}
 	b.Write(by)
 	d := gob.NewDecoder(&b)
 	err = d.Decode(&m)
 	if err != nil {
-		return nil, err
+		return models.User{}, err
 	}
 	return m, nil
 }

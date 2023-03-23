@@ -32,6 +32,8 @@ func (m *SecretsHandlers) NewSecret(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "", http.StatusInternalServerError)
 		return
 	}
+
+	w.WriteHeader(http.StatusCreated)
 }
 
 func unmarshalSecret(r *http.Request) (models.Secret, error) {

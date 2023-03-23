@@ -1,17 +1,21 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
 	"github.com/e-faizov/GophKeeper/internal/cli"
 	"github.com/e-faizov/GophKeeper/internal/crypto"
+	"github.com/e-faizov/GophKeeper/internal/interfaces"
 	"github.com/e-faizov/GophKeeper/internal/models"
-	"github.com/e-faizov/GophKeeper/internal/network"
+	"github.com/e-faizov/GophKeeper/internal/utils"
 )
 
-func FirstAction() {
+func FirstAction(req interfaces.Requests) {
 	for {
+		fmt.Println()
+		fmt.Println("----------------------")
 		fmt.Println("Select action")
 		sel := []cli.SelectionItem{
 			"New secret",
@@ -22,35 +26,62 @@ func FirstAction() {
 
 		switch item {
 		case 0:
-			newSecret()
+			newSecret(req)
 		case 1:
-			list()
+			list(req)
 		case 2:
 			os.Exit(0)
 		}
 	}
 }
 
-func list() {
-	secrets, err := network.GetSecretsList()
+func list(req interfaces.Requests) {
+	secrets, err := req.GetSecretsList()
 	if err != nil {
 		fmt.Println("Error get secret list", err, "try again")
 		return
 	}
 
+	if len(secrets) == 0 {
+		fmt.Println("Empty")
+		return
+	}
+
 	names := make([]cli.SelectionItem, 0, len(secrets))
 
+	fmt.Println("Select secret:")
 	for _, s := range secrets {
-		data, err := crypto.UnCrypt(s.Data1)
+		data, err := crypto.UnCrypt(s.Name)
 		if err != nil {
 			fmt.Println("Error uncrypt data, try again")
 			return
 		}
-		names = append(names, cli.SelectionItem(data))
+
+		meta, err := crypto.UnCrypt(s.Meta)
+		if err != nil {
+			fmt.Println("Error uncrypt data, try again")
+			return
+		}
+
+		var tpStr string
+		switch s.Type {
+		case passLoginType:
+			tpStr = "(Login-Password)"
+		case textType:
+			tpStr = "(Text)"
+		case bankCardType:
+			tpStr = "(Bank card)"
+		}
+
+		item := data + " " + tpStr
+		if len(meta) != 0 {
+			item += "\n" + meta
+		}
+		names = append(names, cli.SelectionItem(item))
 	}
 	selectName := cli.Selection(names)
 
-	secret, err := network.GetSecret(secrets[selectName].Uid, secrets[selectName].Version)
+	secret, err := req.GetSecret(secrets[selectName].Uid, secrets[selectName].Version)
 	if err != nil {
 		fmt.Println("Error get secret", err, "try again")
 		return
@@ -62,6 +93,9 @@ func list() {
 		return
 	}
 
+	fmt.Println()
+	fmt.Println("----------------------")
+	fmt.Println("Select action")
 	actionSelection := []cli.SelectionItem{
 		"Edit",
 		"Remove",
@@ -72,67 +106,74 @@ func list() {
 
 	switch selectionResult {
 	case 0:
-		editSecret(secret)
+		editSecret(req, secret)
 	case 1:
-		removeSecret(secret)
+		removeSecret(req, secret)
 	default:
 		return
 	}
 }
 
-func editSecret(s models.Secret) {
-	unprotectName, err := crypto.UnCrypt(s.Data1)
-	if err != nil {
-		fmt.Println("Error when unprotect data, try again")
-		return
+func editSecret(req interfaces.Requests, s models.Secret) {
+	var err error
+	edit := models.Secret{
+		Uid:     s.Uid,
+		Version: s.Version,
+		Name:    s.Name,
 	}
+	for {
+		data, meta := dataMetaFields(s.Type)
 
-	_, err = crypto.UnCrypt(s.Data2)
-	if err != nil {
-		fmt.Println("Error when unprotect data, try again")
-		return
-	}
-
-	uprotectMeta, err := crypto.UnCrypt(s.Data3)
-	if err != nil {
-		fmt.Println("Error when unprotect data, try again")
-		return
-	}
-
-	cli.ChangeData(secretNameLabel, &unprotectName)
-
-	switch s.Type {
-	case passLoginType:
-		/*tmp, err := utils.FromGOB64(unprotectName)
+		edit.Data, err = crypto.Crypt(data)
 		if err != nil {
-
+			fmt.Println("Problem with crypt:", err, "try again")
+			continue
 		}
 
-		lp, ok := tmp.(LoginPass)
-		if !ok {
+		edit.Meta, err = crypto.Crypt(meta)
+		if err != nil {
+			fmt.Println("Problem with crypt:", err, "try again")
+			continue
+		}
 
-		}*/
-
-	default:
-
+		err = req.EditSecret(edit)
+		if err != nil {
+			fmt.Println(err, "try again")
+			continue
+		}
+		fmt.Println("Done!")
+		break
 	}
-
-	cli.ChangeData("", &uprotectMeta)
 }
 
-func removeSecret(s models.Secret) {
-	err := network.RemoveSecret(s.Uid, s.Version)
+func removeSecret(req interfaces.Requests, s models.Secret) {
+	err := req.RemoveSecret(s.Uid, s.Version)
 	if err != nil {
 		fmt.Println("Error when remove secret, try again")
 	}
+	fmt.Println("Done!")
 }
 
 func printSecret(s models.Secret) error {
-	unСryptData, err := crypto.UnCrypt(s.Data2)
+	unСryptData, err := crypto.UnCrypt(s.Data)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println(unСryptData)
+	switch s.Type {
+	case passLoginType:
+		pl, err := utils.ConvertFromGOB64(unСryptData)
+		if err != nil {
+			return err
+		}
+		fmt.Println("Login:", pl.Login)
+		fmt.Println("Password:", pl.Password)
+	case textType:
+		fmt.Println("Text:", unСryptData)
+	case bankCardType:
+		fmt.Println("Card:", unСryptData)
+	default:
+		return errors.New("unknown secret type")
+	}
 	return nil
 }

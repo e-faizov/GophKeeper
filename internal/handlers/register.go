@@ -47,6 +47,7 @@ func (p *PersonsHandlers) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	setCookie(w, token)
+	w.WriteHeader(http.StatusCreated)
 }
 
 func (p *PersonsHandlers) Logout(w http.ResponseWriter, r *http.Request) {

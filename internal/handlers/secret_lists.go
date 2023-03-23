@@ -13,14 +13,7 @@ func (m *SecretsHandlers) GetSecretsList(w http.ResponseWriter, r *http.Request)
 	ctx := r.Context()
 	userID := ctx.Value(models.UUIDKey).(string)
 
-	sec, err := unmarshalSecret(r)
-	if err != nil {
-		log.Error().Err(err).Msg("SecretsHandlers.GetSecretsList error parse body")
-		http.Error(w, "", http.StatusBadRequest)
-		return
-	}
-
-	res, err := m.Logic.GetSecretsList(ctx, userID, sec)
+	res, err := m.Logic.GetSecretsList(ctx, userID)
 	if err != nil {
 		log.Error().Err(err).Msg("SecretsHandlers.GetSecretsList error processing data")
 		http.Error(w, "", http.StatusInternalServerError)

@@ -5,7 +5,8 @@ import (
 	"os"
 
 	"github.com/e-faizov/GophKeeper/internal/cli"
-	"github.com/e-faizov/GophKeeper/internal/network"
+	"github.com/e-faizov/GophKeeper/internal/crypto"
+	"github.com/e-faizov/GophKeeper/internal/interfaces"
 )
 
 func getJwt(req func(string, string) error) error {
@@ -24,11 +25,22 @@ func getJwt(req func(string, string) error) error {
 	}
 
 	cli.EnterData(items)
+	crypto.SetPasswors(pass)
 
-	return req(login, pass)
+	authPass, err := crypto.Hmac(login)
+	if err != nil {
+		return err
+	}
+
+	err = req(login, authPass)
+
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-func RegOrAuth() {
+func RegOrAuth(req interfaces.Requests) {
 LOOP:
 	for {
 		ra := []cli.SelectionItem{
@@ -41,14 +53,14 @@ LOOP:
 
 		switch itemSel {
 		case 0:
-			err := getJwt(network.Registration)
+			err := getJwt(req.Registration)
 			if err != nil {
 				fmt.Println(err, "try again")
 				continue
 			}
 			break LOOP
 		case 1:
-			err := getJwt(network.Auth)
+			err := getJwt(req.Auth)
 			if err != nil {
 				fmt.Println(err, "try again")
 				continue

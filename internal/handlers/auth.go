@@ -15,7 +15,7 @@ func (p *PersonsHandlers) Auth(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "wrong body", http.StatusBadRequest)
 		return
 	}
-	uid, ok, err := p.Store.Login(ctx, user.Login, user.Password)
+	ok, uid, err := p.Store.Login(ctx, user.Login, user.Password)
 	if err != nil {
 		log.Error().Err(err).Msg("User.Login error verify user")
 		p.Logout(w, r)
